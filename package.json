@@ -1,0 +1,64 @@
+{
+  "name": "@edsdk/flmngr-ckeditor5",
+  "version": "1.0.0",
+  "description": "Flmngr integration for CKEditor 5.",
+  "keywords": [
+    "ckeditor",
+    "ckeditor5",
+    "ckeditor 5",
+    "ckeditor5-feature",
+    "ckeditor5-plugin",
+    "file",
+    "image",
+    "finder",
+    "manager",
+    "browser",
+    "file manager",
+    "file browser",
+    "file finder",
+    "image manager",
+    "image browser",
+    "image finder",
+    "image editor"
+  ],
+  "main": "src/index.js",
+  "dependencies": {
+    "ckeditor5": "^35.0.1"
+  },
+  "devDependencies": {
+    "@ckeditor/ckeditor5-clipboard": "^35.0.1",
+    "@ckeditor/ckeditor5-core": "^35.0.1",
+    "@ckeditor/ckeditor5-dev-utils": "^30.0.0",
+    "@ckeditor/ckeditor5-editor-classic": "^35.0.1",
+    "@ckeditor/ckeditor5-engine": "^35.0.1",
+    "@ckeditor/ckeditor5-image": "^35.0.1",
+    "@ckeditor/ckeditor5-link": "^35.0.1",
+    "@ckeditor/ckeditor5-paragraph": "^35.0.1",
+    "@ckeditor/ckeditor5-theme-lark": "^35.0.1",
+    "@ckeditor/ckeditor5-ui": "^35.0.1",
+    "@ckeditor/ckeditor5-utils": "^35.0.1",
+    "webpack": "^5.58.1",
+    "webpack-cli": "^4.9.0"
+  },
+  "engines": {
+    "node": ">=14.0.0",
+    "npm": ">=5.7.1"
+  },
+  "author": "Flmngr (https://flmngr.com/)",
+  "license": "GPL-2.0-or-later",
+  "homepage": "https://flmngr.com",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/edsdk/flmngr-ckeditor5.git",
+    "directory": ""
+  },
+  "files": [
+    "src",
+    "theme",
+    "ckeditor5-metadata.json"
+  ],
+  "scripts": {
+    "watch": "webpack --mode development --watch",
+    "build": "webpack"
+  }
+}

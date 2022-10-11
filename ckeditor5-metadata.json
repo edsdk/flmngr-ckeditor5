@@ -1,0 +1,29 @@
+{
+	"plugins": [
+		{
+			"name": "Flmngr",
+			"className": "Flmngr",
+			"description": "An image upload tool. It provides a full, server-side and client-side integration with Flmngr and all its features, including multiple file uploads, image editor and file management. ImgPen image editor is also integrated into it.",
+			"path": "src/flmngr.js",
+			"requires": [
+			],
+			"uiComponents": [
+				{
+					"name": "upload",
+					"type": "Button",
+					"iconPath": "theme/icons/upload.svg"
+				},
+				{
+					"name": "flmngr",
+					"type": "Button",
+					"iconPath": "theme/icons/flmngr.svg"
+				},
+				{
+					"name": "imgpen",
+					"type": "Button",
+					"iconPath": "theme/icons/imgpen.svg"
+				}
+			]
+		}
+	]
+}
