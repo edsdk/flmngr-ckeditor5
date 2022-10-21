@@ -31,7 +31,7 @@ export default class Flmngr extends Plugin {
 
 	setFlmngr(flmngr) {
 		const options = this.editor.config.get( 'flmngr.options' ) || {};
-		options.integration = !!window.Drupal ? "drupal8-ckeditor5" : "ckeditor5";
+		options.integration = options["integration"] || "ckeditor5";
 		options.integrationType = "flmngr";
 		let flmngrInstance = flmngr.create(options);
 		FlmngrCommand.flmngr = flmngrInstance;

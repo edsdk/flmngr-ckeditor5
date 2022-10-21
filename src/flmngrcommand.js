@@ -110,7 +110,7 @@ export default class FlmngrCommand extends Command {
 
 	createOrChange(el, elImg, elA, urls) {
 		if (!!elImg) {
-			this.changeImgSrc(elImg, urls[0]);
+			this.changeImgSrc(elImg, FlmngrCommand.flmngr.getNoCacheUrl(urls[0]));
 		} else if (!!elA) {
 			this.changeAHref(elA, urls[0]);
 		} else {
