@@ -55,9 +55,16 @@ export default class ImgPenCommand extends Command {
 	changeImgSrc(el, url) {
 		this.editor.model.change( writer => {
 			writer.setAttribute("src", url, el);
-			writer.setAttribute("srcset", null, el);
-			writer.setAttribute("width", null, el);
-			writer.setAttribute("height", null, el);
+			writer.removeAttribute("srcset", el);
+			writer.removeAttribute("sizes", el);
+
+			let attr = el.getAttribute("htmlAttributes");
+			if (attr) {
+				delete attr.attributes.src;
+				delete attr.attributes.srcset;
+				delete attr.attributes.sizes;
+				writer.setAttribute("htmlAttributes", attr, el);
+			}
 		});
 
 	};

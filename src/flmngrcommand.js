@@ -161,11 +161,28 @@ export default class FlmngrCommand extends Command {
 	};
 
 	changeImgSrc(el, url) {
+
 		this.editor.model.change( writer => {
 			writer.setAttribute("src", url, el);
-			writer.setAttribute("srcset", null, el);
-			writer.setAttribute("width", null, el);
-			writer.setAttribute("height", null, el);
+			writer.removeAttribute("srcset", el);
+			writer.removeAttribute("sizes", el);
+
+			/*
+			In Drupal when using existing content with existing image,
+			CKEditor 5 sets also a custom HTML attribute "src", so
+			to change an image URL we need not only to set an
+			attribute "src" of a model of CKEditor 5,
+			but also and "src" attribute of HTML.
+			Probably this is a bug or a misconfiguration of
+			CKEditor 5 in Drupal 9/10.
+			 */
+			let attr = el.getAttribute("htmlAttributes");
+			if (attr) {
+				delete attr.attributes.src;
+				delete attr.attributes.srcset;
+				delete attr.attributes.sizes;
+				writer.setAttribute("htmlAttributes", attr, el);
+			}
 		});
 
 	};

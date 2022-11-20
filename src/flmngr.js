@@ -11,6 +11,8 @@ import UploadCommand from "./uploadcommand";
 
 export default class Flmngr extends Plugin {
 
+	listenersFlmngrIsReady = [];
+
 	static get pluginName() {
 		return 'Flmngr';
 	}
@@ -36,9 +38,26 @@ export default class Flmngr extends Plugin {
 		let flmngrInstance = flmngr.create(options);
 		FlmngrCommand.flmngr = flmngrInstance;
 		ImgPenCommand.flmngr = flmngrInstance;
+
+		let apiLegacy = flmngrInstance; // flmngr
+		let apiNew = apiLegacy.getNewAPI();  // Flmngr but without isFlmngrReady & isImgPenReady
+		this.editor["getFlmngr"] = (onFlmngrIsReady) => {
+			onFlmngrIsReady(apiNew, apiLegacy); // new way to receive Flmngr
+			return apiLegacy; // old way to receive Flmngr
+		};
+		// Call all previous listeners
+		for (const l of this.listenersFlmngrIsReady)
+			l(apiNew, apiLegacy);
+
+		window.FlmngrCKEditor5 = flmngrInstance.getNewAPI();
 	}
 
 	init() {
+
+		this.editor["getFlmngr"] = (onFlmngrIsReady) => {
+			!!onFlmngrIsReady && this.listenersFlmngrIsReady.push(onFlmngrIsReady); // a new way to receive Flmngr
+			return null; // an old way to receive Flmngr, but it is not loaded yet, 'getFlmngr' will be overridden later to return existing values
+		};
 
 		// Include Flmngr JS lib into the document if it was not added by 3rd party code
 		const apiKey = this.editor.config.get( 'flmngr.apiKey' ) || 'FLMNFLMN';
