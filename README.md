@@ -5,7 +5,7 @@ This package implements the [Flmngr feature](https://flmngr.com). This feature a
 
 ## Documentation
 
-See the [Flmngr installation guide](https://flmngr.com/doc/install-ckeditor5-plugin) to know how to install Flmngr file manager step by step.
+See the [Flmngr installation guide](https://flmngr.com/doc/install-ckeditor-5-plugin) to know how to install Flmngr file manager step by step.
 
 ## License
 
