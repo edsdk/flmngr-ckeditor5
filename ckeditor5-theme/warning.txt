@@ -1,0 +1,9 @@
+Do not rename this directory or change its structure:
+
+    ckeditor5-theme/theme/icons/*.svg
+
+described on the page:
+
+    https://ckeditor.com/docs/ckeditor5/latest/installation/getting-started/quick-start-other.html
+
+This is required to fit CKEditor5's regexp in default Webpack config.

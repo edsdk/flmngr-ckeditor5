@@ -11,17 +11,17 @@
 				{
 					"name": "upload",
 					"type": "Button",
-					"iconPath": "theme/icons/upload.svg"
+					"iconPath": "ckeditor5-theme/theme/icons/upload.svg"
 				},
 				{
 					"name": "flmngr",
 					"type": "Button",
-					"iconPath": "theme/icons/flmngr.svg"
+					"iconPath": "ckeditor5-theme/theme/icons/flmngr.svg"
 				},
 				{
 					"name": "imgpen",
 					"type": "Button",
-					"iconPath": "theme/icons/imgpen.svg"
+					"iconPath": "ckeditor5-theme/theme/icons/imgpen.svg"
 				}
 			]
 		}

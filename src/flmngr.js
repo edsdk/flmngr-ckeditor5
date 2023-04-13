@@ -4,9 +4,9 @@ import { ButtonView } from 'ckeditor5/src/ui';
 
 import FlmngrCommand from "./flmngrcommand";
 import ImgPenCommand from "./imgpencommand";
-import iconUpload from '../theme/icons/upload.svg';
-import iconFlmngr from '../theme/icons/flmngr.svg';
-import iconImgPen from '../theme/icons/imgpen.svg';
+import iconUpload from '../ckeditor5-theme/theme/icons/upload.svg';
+import iconFlmngr from '../ckeditor5-theme/theme/icons/flmngr.svg';
+import iconImgPen from '../ckeditor5-theme/theme/icons/imgpen.svg';
 import UploadCommand from "./uploadcommand";
 
 export default class Flmngr extends Plugin {
@@ -40,7 +40,8 @@ export default class Flmngr extends Plugin {
 		ImgPenCommand.flmngr = flmngrInstance;
 
 		let apiLegacy = flmngrInstance; // flmngr
-		let apiNew = apiLegacy.getNewAPI();  // Flmngr but without isFlmngrReady & isImgPenReady
+		// New API exists only in Flmngr v2
+		let apiNew = !!apiLegacy.getNewAPI && apiLegacy.getNewAPI();  // Flmngr but without isFlmngrReady & isImgPenReady
 		this.editor["getFlmngr"] = (onFlmngrIsReady) => {
 			onFlmngrIsReady(apiNew, apiLegacy); // new way to receive Flmngr
 			return apiLegacy; // old way to receive Flmngr
