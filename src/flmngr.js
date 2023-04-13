@@ -32,7 +32,7 @@ export default class Flmngr extends Plugin {
 	}
 
 	setFlmngr(flmngr) {
-		const options = this.editor.config.get( 'flmngr.options' ) || {};
+		const options = this.editor.config.get( 'flmngr' ) || {};
 		options.integration = options["integration"] || "ckeditor5";
 		options.integrationType = "flmngr";
 		let flmngrInstance = flmngr.create(options);
