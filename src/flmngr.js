@@ -32,7 +32,7 @@ export default class Flmngr extends Plugin {
 	}
 
 	setFlmngr(flmngr) {
-		const options = this.editor.config.get( 'flmngr' ) || {};
+		const options = this.editor.config.get('flmngr') || this.editor.config.get('Flmngr') || {};
 		options.integration = options["integration"] || "ckeditor5";
 		options.integrationType = "flmngr";
 		let flmngrInstance = flmngr.create(options);
@@ -61,7 +61,7 @@ export default class Flmngr extends Plugin {
 		};
 
 		// Include Flmngr JS lib into the document if it was not added by 3rd party code
-		const apiKey = this.editor.config.get( 'flmngr.apiKey' ) || 'FLMNFLMN';
+		const apiKey = this.editor.config.get('flmngr.apiKey') || this.editor.config.get('Flmngr.apiKey') || 'FLMNFLMN';
 		if (window.flmngr) {
 			// Already loaded by another instance or by using flmngr.js manually
 			this.setFlmngr(window.flmngr);
@@ -73,7 +73,7 @@ export default class Flmngr extends Plugin {
 				this.setFlmngr(window.flmngr);
 			});
 
-			let delay = this.editor.config.get( 'flmngr.libLoadDelay' );
+			let delay = this.editor.config.get('flmngr.libLoadDelay') || this.editor.config.get('Flmngr.libLoadDelay');
 			if (!delay || parseInt(delay) != delay)
 				delay = 1;
 			setTimeout(() => {

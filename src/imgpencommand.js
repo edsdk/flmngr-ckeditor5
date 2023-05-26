@@ -18,9 +18,10 @@ export default class ImgPenCommand extends Command {
 	getSelectedImage() {
 		const selection = this.editor.model.document.selection;
 		const el = selection.getSelectedElement() || first( selection.getSelectedBlocks() );
-		if (el.name === 'imageBlock' || el.name === 'imageInline') {
+		if (!!el && (el.name === 'imageBlock' || el.name === 'imageInline')) {
 			return el;
 		}
+		return null;
 	}
 
 	refresh() {

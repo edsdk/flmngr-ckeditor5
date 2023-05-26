@@ -1,6 +1,6 @@
 {
   "name": "@edsdk/flmngr-ckeditor5",
-  "version": "1.0.7",
+  "version": "1.0.9",
   "description": "Flmngr integration for CKEditor 5.",
   "keywords": [
     "ckeditor",
@@ -54,7 +54,7 @@
   },
   "files": [
     "src",
-    "ckeditor5-flmngr/theme",
+    "ckeditor5-theme/theme",
     "ckeditor5-metadata.json"
   ],
   "scripts": {

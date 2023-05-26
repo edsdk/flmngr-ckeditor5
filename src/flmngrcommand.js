@@ -74,7 +74,7 @@ export default class FlmngrCommand extends Command {
 		}
 
 		let elImg = null;
-		if (el.name === 'imageBlock' || el.name === 'imageInline') {
+		if (!!el && (el.name === 'imageBlock' || el.name === 'imageInline')) {
 			elImg = el;
 			currentUrl = elImg.getAttribute("src");
 			elA = null;
