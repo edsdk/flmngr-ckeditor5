@@ -1,6 +1,5 @@
-import { Plugin } from 'ckeditor5/src/core';
-import { Notification } from 'ckeditor5/src/ui';
-import { ButtonView } from 'ckeditor5/src/ui';
+import { Plugin, Notification, ButtonView } from 'ckeditor5';
+import * as Cookies from "./cookie";
 
 import FlmngrCommand from "./flmngrcommand";
 import ImgPenCommand from "./imgpencommand";
@@ -61,7 +60,7 @@ export default class Flmngr extends Plugin {
 		};
 
 		// Include Flmngr JS lib into the document if it was not added by 3rd party code
-		const apiKey = this.editor.config.get('flmngr.apiKey') || this.editor.config.get('Flmngr.apiKey') || 'FLMNFLMN';
+		const apiKey =  this.editor.config.get('apiKey') || this.editor.config.get('flmngr.apiKey') || this.editor.config.get('Flmngr.apiKey') || 'FLMNFLMN';
 		if (window.flmngr) {
 			// Already loaded by another instance or by using flmngr.js manually
 			this.setFlmngr(window.flmngr);
@@ -73,12 +72,15 @@ export default class Flmngr extends Plugin {
 				this.setFlmngr(window.flmngr);
 			});
 
-			let delay = this.editor.config.get('flmngr.libLoadDelay') || this.editor.config.get('Flmngr.libLoadDelay');
+			let delay = this.editor.config.get('libLoadDelay') || this.editor.config.get('flmngr.libLoadDelay') || this.editor.config.get('Flmngr.libLoadDelay');
 			if (!delay || parseInt(delay) != delay)
 				delay = 1;
 			setTimeout(() => {
-				Flmngr.includeJS("https://cloud.flmngr.com/cdn/" + apiKey + "/flmngr.js");
-				Flmngr.includeJS("https://cloud.flmngr.com/cdn/" + apiKey + "/imgpen.js");
+
+				let host = "http" + (Cookies.get("N1ED_HTTPS") === "false" ? "" : "s") + "://" + (!!Cookies.get("N1ED_PREFIX") ? (Cookies.get("N1ED_PREFIX") + ".") : "") + "cloud.n1ed.com";
+
+				Flmngr.includeJS(host + "/v/latest/sdk/flmngr.js?apiKey=" + apiKey);
+				Flmngr.includeJS(host + "/v/latest/sdk/imgpen.js?apiKey=" + apiKey);
 			}, delay);
 		}
 
