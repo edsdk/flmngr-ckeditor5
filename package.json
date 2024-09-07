@@ -1,6 +1,6 @@
 {
   "name": "@edsdk/flmngr-ckeditor5",
-  "version": "1.1.0",
+  "version": "1.1.1",
   "description": "File manager plugin for CKEditor 5",
   "keywords": [
     "ckeditor",
@@ -26,8 +26,8 @@
     "ckeditor5": ">=42.0.0"
   },
   "devDependencies": {
-    "webpack": "^5.58.1",
-    "webpack-cli": "^4.9.0"
+    "webpack": "^5.92.1",
+    "webpack-cli": "^4.10.0"
   },
   "engines": {
     "node": ">=14.0.0",
