@@ -54,5 +54,6 @@ module.exports = {
     devtool: 'source-map',
 
     // By default webpack logs warnings if the bundle is bigger than 200kb.
-    performance: { hints: false }
+    performance: { hints: false },
+
 };

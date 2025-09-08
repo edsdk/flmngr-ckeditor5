@@ -5,7 +5,7 @@ export default class FlmngrCommand extends Command {
 
 	static flmngr;
 
-	imageExtensions = ['jpeg', 'jpg', 'png', 'bmp', 'svg', 'webp'];
+	imageExtensions = ['jpeg', 'jpg', 'png', 'bmp', 'svg', 'webp', 'gif'];
 
 	constructor( editor ) {
 		super( editor );
@@ -35,31 +35,10 @@ export default class FlmngrCommand extends Command {
 
 	// Call a dialog to select local file and upload them ("Upload" action)
 	executeUpload() {
-		this.execute2(true);
+		this.execute2(true, null);
 	}
 
-	// Call Flmngr ("Browse" action)
-	execute() {
-		this.execute2(false);
-	}
-
-	execute2(doUpload) { // false = browse
-
-		const imageCommand = this.editor.commands.get( 'insertImage' );
-		if (!imageCommand) {
-			let msg = "Please enable CKEditor 5 `Image` plugin in order to use Flmngr file manager";
-			if (!!window.Drupal)
-				msg += ":\n\nDrupal users must set `Image Upload` -> `Enable image uploads` checkbox on the page of CKEditor 5 text format";
-			alert(msg);
-			return;
-		}
-
-
-		if (!FlmngrCommand.flmngr) {
-			console.log("File manager is not loaded yet");
-			return;
-		}
-
+	getSelectedElements() {
 		const selection = this.editor.model.document.selection;
 		const el = selection.getSelectedElement() || first( selection.getSelectedBlocks() );
 
@@ -78,35 +57,114 @@ export default class FlmngrCommand extends Command {
 			elA = null;
 		}
 
+		return {
+			el: el,
+			elImg: elImg,
+			elA: elA,
+			currentUrl: currentUrl
+		}
+	}
+
+	// Call Flmngr ("Browse" action)
+	execute() {
+		this.execute2(false, (urls) => {
+			if (urls !== null) {
+				let selectedElements = this.getSelectedElements();
+				this.createOrChange(
+					selectedElements.el,
+					selectedElements.elImg,
+					selectedElements.elA,
+					urls
+				);
+			}
+		});
+	}
+
+	execute2(
+		doUpload, // false = browse
+		callback  // will insert files instead if callback === null
+	) {
+
+		let selectedElements = this.getSelectedElements();
+
+		const imageCommand = this.editor.commands.get( 'insertImage' );
+		if (!imageCommand) {
+			let msg = "Please enable CKEditor 5 `Image` plugin in order to use Flmngr file manager";
+			if (!!window.Drupal)
+				msg += ":\n\nDrupal users must set `Image Upload` -> `Enable image uploads` checkbox on the page of CKEditor 5 text format";
+			alert(msg);
+			callback(null);
+			return;
+		}
+
+
+		if (!FlmngrCommand.flmngr) {
+			console.log("File manager is not loaded yet");
+			callback(null);
+			return;
+		}
+
 		if (doUpload) {
 			FlmngrCommand.flmngr.selectFiles({
-				acceptExtensions: !!elImg ? this.imageExtensions : null,
+				acceptExtensions: !!selectedElements.elImg ? this.imageExtensions : null,
 				isMultiple: false,
 				onFinish: (files) => {
 					FlmngrCommand.flmngr.upload({
 						filesOrLinks: files,
 						onFinish: (urls, paths) => {
-							this.createOrChange(el, elImg, elA, urls);
+							callback(urls);
 						},
 						onFail: (error) => {
 							showWarning(this.editor, 'Unable to upload files', true, error, false);
+							callback(null);
+						},
+						onCancel: () => {
+							callback(null);
 						}
 					});
 				}
 			})
 		} else {
 			FlmngrCommand.flmngr.pickFiles({
-				acceptExtensions: !!elImg ? this.imageExtensions : null,
+				acceptExtensions: !!selectedElements.elImg ? this.imageExtensions : null,
 				isMultiple: false,
-				list: currentUrl ? [currentUrl] : null,
+				list: selectedElements.currentUrl ? [selectedElements.currentUrl] : null,
 				onFinish: (files) => {
-					this.createOrChange(el, elImg, elA, files.map(f => f.url));
+					let urls = files.map(f => f.url);
+					callback(urls)
+				},
+				onCancel: () => {
+					callback(null);
 				}
 			});
 		}
 	}
 
+	isPlainTextSelection(selection) {
+		const ranges = selection.getRanges();
+		for (const range of ranges) {
+			for (const item of range.getItems()) {
+				if (item.is('textProxy'))
+					continue;
+				return false;
+			}
+		}
+		return true;
+	}
+
 	createOrChange(el, elImg, elA, urls) {
+
+		// If non-image file is selected, and selection is a plain text, just convert it to a link
+		if (!this.isImage(urls[0])) {
+			const selection = this.editor.model.document.selection;
+			if (!selection.isCollapsed && this.isPlainTextSelection(selection)) {
+				editor.model.change(writer => {
+					this.editor.commands.get('link').execute(urls[0]);
+				});
+				return;
+			}
+		}
+
 		if (!!elImg) {
 			this.changeImgSrc(elImg, FlmngrCommand.flmngr.getNoCacheUrl(urls[0]));
 		} else if (!!elA) {
