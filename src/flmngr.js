@@ -1,5 +1,6 @@
 import { Plugin, Notification, ButtonView } from 'ckeditor5';
 import * as Cookies from "./cookie";
+import { showWarning } from "./utils";
 
 import FlmngrCommand from "./flmngrcommand";
 import ImgPenCommand from "./imgpencommand";
@@ -58,6 +59,10 @@ export default class Flmngr extends Plugin {
 	}
 
 	setFlmngr(flmngr) {
+		if (this._loadTimeout) {
+			clearTimeout(this._loadTimeout);
+			this._loadTimeout = null;
+		}
 		const options = this.restorePrototypes(this.editor.config.get('flmngr') || this.editor.config.get('Flmngr') || {});
 		options.integration = options["integration"] || "ckeditor5";
 		options.integrationType = "flmngr";
@@ -104,10 +109,37 @@ export default class Flmngr extends Plugin {
 				delay = 1;
 			setTimeout(() => {
 
-				let host = "http" + (Cookies.get("N1ED_HTTPS") === "false" ? "" : "s") + "://" + (!!Cookies.get("N1ED_PREFIX") ? (Cookies.get("N1ED_PREFIX") + ".") : "") + "cloud.n1ed.com";
+				let prefix = "";
+					if (!!Cookies.get("N1ED_PREFIX"))
+						prefix = Cookies.get("N1ED_PREFIX") + ".";
+					if (!!window.N1ED_PREFIX)
+						prefix = window.N1ED_PREFIX + ".";
+					let host = "http" + (
+						(Cookies.get("N1ED_HTTPS") === "false" || window.N1ED_HTTPS === false)
+							? ""
+							: "s"
+					) + "://" + prefix + "cloud.n1ed.com";
 
 				Flmngr.includeJS(host + "/v/latest/sdk/flmngr.js?apiKey=" + apiKey);
 				Flmngr.includeJS(host + "/v/latest/sdk/imgpen.js?apiKey=" + apiKey);
+
+				// Failsafe: when our server is not available, the editor itself stays usable,
+				// but the file manager buttons would silently do nothing. Warn the user instead.
+				let timeoutMs = typeof window.N1ED_FAILSAFE_TIMEOUT === "number" ? window.N1ED_FAILSAFE_TIMEOUT : 15000;
+				if (timeoutMs > 0) {
+					this._loadTimeout = setTimeout(() => {
+						if (!window.flmngr) {
+							console.warn("No answer from our server in " + timeoutMs + " ms, the editor continues without the file manager");
+							showWarning(
+								this.editor,
+								"Flmngr",
+								false,
+								"Failed to load Flmngr from CDN. File manager is unavailable.",
+								false
+							);
+						}
+					}, timeoutMs);
+				}
 			}, delay);
 		}
 
@@ -194,6 +226,16 @@ export default class Flmngr extends Plugin {
 	attachToLinkBalloon() {
 
 		const editor = this.editor;
+
+		// Link/LinkEditing are an OPTIONAL dependency (see `requires` above), so plenty of
+		// editors have no LinkUI: the install page's own plugin list, and Drupal until the
+		// user puts a Link button on the toolbar. `plugins.get()` THROWS for a plugin that is
+		// not loaded, and that killed the whole editor at boot instead of just leaving the
+		// link balloon alone. Ask first, and skip the extra button when it is not there.
+		if ( !editor.plugins.has( 'LinkUI' ) || !editor.plugins.has( 'ContextualBalloon' ) ) {
+			return;
+		}
+
 		const linkUI = editor.plugins.get( "LinkUI" );
 		const contextualBalloonPlugin = editor.plugins.get( 'ContextualBalloon' );
 
