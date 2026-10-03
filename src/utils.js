@@ -6,7 +6,8 @@ export function showWarning(
     message,
     doLocalizeMessage
 ) {
-    const notification = editor.plugins.get( 'Notification' );
+    // plugins.get() throws for a plugin that is not loaded, so ask first
+    const notification = editor.plugins.has( 'Notification' ) ? editor.plugins.get( 'Notification' ) : null;
     const t = editor.locale.t;
     if (!!notification) {
         notification.showWarning(
@@ -19,7 +20,7 @@ export function showWarning(
     } else {
         alert(
             (doLocalizeTitle ? t(title) : title) + "\n\n" +
-            doLocalizeMessage ? t(message) : message
+            (doLocalizeMessage ? t(message) : message)
         );
     }
 }

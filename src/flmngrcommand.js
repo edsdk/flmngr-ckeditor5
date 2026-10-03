@@ -10,11 +10,13 @@ export default class FlmngrCommand extends Command {
 	constructor( editor ) {
 		super( editor );
 
-		// Remove default document listener to lower its priority.
+		// refresh() reads the image and link commands, so it has to run after they refresh: on a
+		// model change, and when the editor leaves read-only mode (Blk42 keeps it read-only while it
+		// loads). With the default priority the buttons stayed disabled until the first keystroke.
 		this.stopListening( this.editor.model.document, 'change' );
-
-		// Lower this command listener priority to be sure that refresh() will be called after link & image refresh.
+		this.stopListening( this.editor, 'change:isReadOnly' );
 		this.listenTo( this.editor.model.document, 'change', () => this.refresh(), { priority: 'low' } );
+		this.listenTo( this.editor, 'change:isReadOnly', () => this.refresh(), { priority: 'low' } );
 	}
 
 	refresh() {
@@ -24,18 +26,9 @@ export default class FlmngrCommand extends Command {
 			(imageCommand.isEnabled || (!!linkCommand && linkCommand.isEnabled));
 	}
 
-	isImage(filepath) {
-		let i = filepath.lastIndexOf(".");
-		if (i > -1 && i < filepath.length-1) {
-			let ext = filepath.substr(i + 1).toLowerCase();
-			return ext === 'jpeg' || ext === 'jpg' || ext === 'png' || ext === 'gif' || ext === "bmp" || ext === "svg" || ext === "webp";
-		}
-		return false;
-	}
-
 	// Call a dialog to select local file and upload them ("Upload" action)
 	executeUpload() {
-		this.execute2(true, null);
+		this.pickAndInsert(true);
 	}
 
 	getSelectedElements() {
@@ -67,7 +60,12 @@ export default class FlmngrCommand extends Command {
 
 	// Call Flmngr ("Browse" action)
 	execute() {
-		this.execute2(false, (urls) => {
+		this.pickAndInsert(false);
+	}
+
+	// Browse or upload, then insert what came back (or change the selected image or link)
+	pickAndInsert(doUpload) {
+		this.execute2(doUpload, (urls) => {
 			if (urls !== null) {
 				let selectedElements = this.getSelectedElements();
 				this.createOrChange(
@@ -82,7 +80,7 @@ export default class FlmngrCommand extends Command {
 
 	execute2(
 		doUpload, // false = browse
-		callback  // will insert files instead if callback === null
+		callback  // gets the URLs, or null when cancelled or failed
 	) {
 
 		let selectedElements = this.getSelectedElements();
@@ -158,7 +156,7 @@ export default class FlmngrCommand extends Command {
 		if (!this.isImage(urls[0])) {
 			const selection = this.editor.model.document.selection;
 			if (!selection.isCollapsed && this.isPlainTextSelection(selection)) {
-				editor.model.change(writer => {
+				this.editor.model.change(writer => {
 					this.editor.commands.get('link').execute(urls[0]);
 				});
 				return;

@@ -38,7 +38,7 @@ export default class Flmngr extends Plugin {
 		}
 
 		if (Array.isArray(obj)) {
-			return obj.map(item => restorePrototypes(item));
+			return obj.map(item => this.restorePrototypes(item));
 		}
 
 		if (Object.getPrototypeOf(obj) === Object.prototype) {
@@ -74,7 +74,7 @@ export default class Flmngr extends Plugin {
 		// New API exists only in Flmngr v2
 		let apiNew = !!apiLegacy.getNewAPI && apiLegacy.getNewAPI();  // Flmngr but without isFlmngrReady & isImgPenReady
 		this.editor["getFlmngr"] = (onFlmngrIsReady) => {
-			onFlmngrIsReady(apiNew, apiLegacy); // new way to receive Flmngr
+			!!onFlmngrIsReady && onFlmngrIsReady(apiNew, apiLegacy); // new way to receive Flmngr
 			return apiLegacy; // old way to receive Flmngr
 		};
 		// Call all previous listeners
@@ -241,7 +241,10 @@ export default class Flmngr extends Plugin {
 
 		this.listenTo( contextualBalloonPlugin, 'change:visibleView', ( evt, name, visibleView ) => {
 
-			if ( visibleView === linkUI.formView ) {
+			// CKEditor 5 creates the link form the first time it is shown, so until then formView is
+			// null, and so is visibleView whenever a balloon empties (the image toolbar hiding when
+			// ImgPen takes the focus): only a real view can be the link form.
+			if ( !!visibleView && visibleView === linkUI.formView ) {
 
 				this.stopListening( contextualBalloonPlugin, 'change:visibleView' );
 

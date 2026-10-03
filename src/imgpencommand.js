@@ -1,4 +1,5 @@
 import { Command, first } from 'ckeditor5';
+import { showWarning } from "./utils";
 
 export default class ImgPenCommand extends Command {
 
@@ -42,12 +43,7 @@ export default class ImgPenCommand extends Command {
 				this.changeImgSrc(elImg, ImgPenCommand.flmngr.getNoCacheUrl(newUrl));
 			},
 			onFail: (error) => {
-				const notification = editor.plugins.get( 'Notification' );
-				const t = editor.locale.t;
-				notification.showWarning(error, {
-					title: t( 'Uploading edited image to server failed' ),
-					namespace: 'flmngr'
-				} );
+				showWarning(this.editor, 'Uploading edited image to server failed', true, error, false);
 			}
 		});
 	}
