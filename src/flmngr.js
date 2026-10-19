@@ -1,344 +1,247 @@
-import { Plugin, Notification, ButtonView } from 'ckeditor5';
+import {
+	Plugin,
+	Notification,
+	ButtonView,
+	Command
+} from "ckeditor5";
+
 import * as Cookies from "./cookie";
 import { showWarning } from "./utils";
 
-import FlmngrCommand from "./flmngrcommand";
-import ImgPenCommand from "./imgpencommand";
-import iconUpload from '../ckeditor5-theme/theme/icons/upload.svg';
-import iconFlmngr from '../ckeditor5-theme/theme/icons/flmngr.svg';
-import iconImgPen from '../ckeditor5-theme/theme/icons/imgpen.svg';
-import UploadCommand from "./uploadcommand";
+import iconUpload from "../ckeditor5-theme/theme/icons/upload.svg";
+import iconFlmngr from "../ckeditor5-theme/theme/icons/flmngr.svg";
+import iconImgPen from "../ckeditor5-theme/theme/icons/imgpen.svg";
+
+const ITEMS = [
+	{ name: "upload", label: "Upload image or file", icon: iconUpload },
+	{ name: "flmngr", label: "Browse image or file", icon: iconFlmngr },
+	{ name: "imgpen", label: "Edit image", icon: iconImgPen }
+];
+
+class FlmngrCommand extends Command {
+
+	constructor(editor, name) {
+		super(editor);
+		this.commandName = name;
+
+		// Refresh after the image and link commands did: on a model change, and when the editor
+		// leaves read-only mode (Blk42 keeps it read-only while it loads)
+		this.stopListening(this.editor.model.document, "change");
+		this.stopListening(this.editor, "change:isReadOnly");
+		this.listenTo(this.editor.model.document, "change", () => this.refresh(), { priority: "low" });
+		this.listenTo(this.editor, "change:isReadOnly", () => this.refresh(), { priority: "low" });
+	}
+
+	refresh() {
+		let instance = this.editor["FlmngrInstance"];
+		this.isEnabled = !!instance && instance.isEnabled(this.commandName);
+	}
+
+	execute() {
+		let instance = this.editor["FlmngrInstance"];
+		if (!!instance)
+			instance.execute(this.commandName);
+	}
+}
 
 export default class Flmngr extends Plugin {
 
-	listenersFlmngrIsReady = [];
-	flmngrCommand = null;
-
 	static get pluginName() {
-		return 'Flmngr';
+		return "Flmngr";
 	}
 
 	static get requires() {
 		return [
 			Notification,
-			//'Image',
-
-			// Default Drupal 9 CKEditor 5 will fail to attach Flmngr if these lines are not commented
-			// due to Link/LinkEditing plugins are not enabled until user adds Link button onto toolbar.
-			// So these two plugins are optional dependency for Flmngr, it can work without them.
-			//
-			// 'Link',
-		    // 'LinkEditing',
 		];
 	}
 
-	restorePrototypes(obj) {
-		if (obj === null || typeof obj !== 'object' || obj instanceof Date || obj instanceof RegExp) {
-			return obj;
-		}
-
-		if (Array.isArray(obj)) {
-			return obj.map(item => this.restorePrototypes(item));
-		}
-
-		if (Object.getPrototypeOf(obj) === Object.prototype) {
-			const result = {};
-			for (const [key, value] of Object.entries(obj)) {
-				result[key] = this.restorePrototypes(value);
-			}
-			return result;
-		}
-
-		const result = {};
-
-		for (const [key, value] of Object.entries(obj)) {
-			result[key] = this.restorePrototypes(value);
-		}
-
-		return result;
+	getApiKey() {
+		return this.editor.config.get("apiKey") ||
+			this.editor.config.get("Flmngr.apiKey") ||
+			this.editor.config.get("flmngr.apiKey") ||
+			"FLMN24RR";
 	}
 
-	setFlmngr(flmngr) {
+	getUrlCdn() {
+		let prefix = "";
+		if (!!Cookies.get("N1ED_PREFIX"))
+			prefix = Cookies.get("N1ED_PREFIX") + ".";
+		if (!!window.N1ED_PREFIX)
+			prefix = window.N1ED_PREFIX + ".";
+		return "http" + (
+			(Cookies.get("N1ED_HTTPS") === "false" || window.N1ED_HTTPS === false)
+				? ""
+				: "s"
+		) + "://" + prefix + "cloud.n1ed.com";
+	}
+
+
+	init() {
+
+		// Callbacks given to getFlmngr() before the CDN code is here are passed on to it
+		this.listenersFlmngrIsReady = [];
+		let getFlmngr = (onFlmngrIsReady) => {
+			!!onFlmngrIsReady && this.listenersFlmngrIsReady.push(onFlmngrIsReady);
+			return null; // not loaded yet, the CDN code replaces this
+		};
+		getFlmngr.n1edPending = this.listenersFlmngrIsReady;
+		this.editor["getFlmngr"] = getFlmngr;
+
+		// The CDN code reads the "Flmngr" section; "flmngr" works as it always did
+		if (!!this.editor.config.get("flmngr"))
+			this.editor.config.set("Flmngr", this.editor.config.get("flmngr"));
+
+		this.addToolbarItems();
+
+		this.loadFlmngr();
+
+		// Same timeout knob as in all our editor plugins (0 disables the failsafe)
+		let timeoutMs = typeof window.N1ED_FAILSAFE_TIMEOUT === "number" ? window.N1ED_FAILSAFE_TIMEOUT : 15000;
+		if (timeoutMs > 0) {
+			this._loadTimeout = setTimeout(() => {
+				this.giveUpLoading("no answer in " + timeoutMs + " ms");
+			}, timeoutMs);
+		}
+	}
+
+	// CKE5 builds the toolbar at init, so the items and their commands are registered here
+	addToolbarItems() {
+		const t = this.editor.t;
+		for (const item of ITEMS) {
+			this.editor.commands.add(item.name, new FlmngrCommand(this.editor, item.name));
+
+			this.editor.ui.componentFactory.add(item.name, locale => {
+				const button = new ButtonView(locale);
+				button.set({
+					label: t(item.label),
+					icon: item.icon,
+					tooltip: true
+				});
+				button.bind("isEnabled").to(this.editor.commands.get(item.name));
+				button.on("execute", () => {
+					this.editor.execute(item.name);
+					this.editor.editing.view.focus();
+				});
+				return button;
+			});
+		}
+	}
+
+	// The timeout above is the last resort, for a server which never answers at all. When the answer
+	// does arrive and simply brings nothing (a failed request, or our own failsafe answer during an
+	// outage), there is no reason to wait for the rest of the timeout.
+	// `quiet`: nothing is broken, the key just has no Flmngr - a line in the console is enough, not
+	// a warning on every editor the site opens.
+	giveUpLoading(why, quiet) {
+		if (this.editor["FlmngrInstance"] || this._gaveUp)
+			return;
+		this._gaveUp = true;
 		if (this._loadTimeout) {
 			clearTimeout(this._loadTimeout);
 			this._loadTimeout = null;
 		}
-		const options = this.restorePrototypes(this.editor.config.get('flmngr') || this.editor.config.get('Flmngr') || {});
-		options.integration = options["integration"] || "ckeditor5";
-		options.integrationType = "flmngr";
-		let flmngrInstance = flmngr.create(options);
-		FlmngrCommand.flmngr = flmngrInstance;
-		ImgPenCommand.flmngr = flmngrInstance;
-
-		let apiLegacy = flmngrInstance; // flmngr
-		// New API exists only in Flmngr v2
-		let apiNew = !!apiLegacy.getNewAPI && apiLegacy.getNewAPI();  // Flmngr but without isFlmngrReady & isImgPenReady
-		this.editor["getFlmngr"] = (onFlmngrIsReady) => {
-			!!onFlmngrIsReady && onFlmngrIsReady(apiNew, apiLegacy); // new way to receive Flmngr
-			return apiLegacy; // old way to receive Flmngr
-		};
-		// Call all previous listeners
-		for (const l of this.listenersFlmngrIsReady)
-			l(apiNew, apiLegacy);
-
-		window.FlmngrCKEditor5 = flmngrInstance.getNewAPI();
+		if (!quiet) {
+			showWarning(
+				this.editor,
+				"Flmngr",
+				false,
+				"Failed to load Flmngr from CDN. File manager is unavailable.",
+				false
+			);
+		}
+		console.warn("Flmngr did not load (" + why + "), the editor continues without the file manager");
 	}
 
-	init() {
+	loadFlmngr() {
 
-		this.editor["getFlmngr"] = (onFlmngrIsReady) => {
-			!!onFlmngrIsReady && this.listenersFlmngrIsReady.push(onFlmngrIsReady); // a new way to receive Flmngr
-			return null; // an old way to receive Flmngr, but it is not loaded yet, 'getFlmngr' will be overridden later to return existing values
-		};
+		if (!window.CKEDITOR_VERSION)
+			window.CKEDITOR_VERSION = "unknown";
 
-		// Include Flmngr JS lib into the document if it was not added by 3rd party code
-		const apiKey =  this.editor.config.get('apiKey') || this.editor.config.get('flmngr.apiKey') || this.editor.config.get('Flmngr.apiKey') || 'FLMNFLMN';
-		if (window.flmngr) {
-			// Already loaded by another instance or by using flmngr.js manually
-			this.setFlmngr(window.flmngr);
+		// FlmngrCKEditor5Api is exposed by the loaded JS
+		if (!window.n1edEco)
+			window.n1edEco = {};
+
+		if (!!window.n1edEco.FlmngrCKEditor5Api) {
+			this.initFlmngr(window.n1edEco.FlmngrCKEditor5Api);
 		} else {
 			// We will load it and wait
-			if (!window.onFlmngrAndImgPenLoadedArray)
-				window.onFlmngrAndImgPenLoadedArray = [];
-			window.onFlmngrAndImgPenLoadedArray.push(() => {
-				this.setFlmngr(window.flmngr);
+			if (!window.n1edEco.onFlmngrCKEditor5ApiLoadedArray)
+				window.n1edEco.onFlmngrCKEditor5ApiLoadedArray = [];
+			window.n1edEco.onFlmngrCKEditor5ApiLoadedArray.push(() => {
+				this.initFlmngr(window.n1edEco.FlmngrCKEditor5Api);
 			});
 
-			let delay = this.editor.config.get('libLoadDelay') || this.editor.config.get('flmngr.libLoadDelay') || this.editor.config.get('Flmngr.libLoadDelay');
-			if (!delay || parseInt(delay) != delay)
-				delay = 1;
-			setTimeout(() => {
+			// A healthy N1EDEco goes on to load Flmngr itself, so the API is not here yet - but it
+			// does leave its config behind the moment it runs. Nothing at all means the answer was
+			// empty, or the failsafe JS our server returns during an outage. It also lists what it
+			// loads: a key without Flmngr (a Txt42 key, say) gets no Flmngr at all, so there is
+			// nothing to wait for.
+			const check = () => {
+				let eco = window.n1edEco;
+				if (!(eco && (eco.FlmngrCKEditor5Api || eco.n1edConfig)))
+					this.giveUpLoading("the CDN answered without the ecosystem");
+				else if (!eco.FlmngrCKEditor5Api && Array.isArray(eco.cke5Runtimes) && eco.cke5Runtimes.indexOf("Flmngr") === -1)
+					this.giveUpLoading("this API key has no Flmngr", true);
+			};
 
-				let prefix = "";
-					if (!!Cookies.get("N1ED_PREFIX"))
-						prefix = Cookies.get("N1ED_PREFIX") + ".";
-					if (!!window.N1ED_PREFIX)
-						prefix = window.N1ED_PREFIX + ".";
-					let host = "http" + (
-						(Cookies.get("N1ED_HTTPS") === "false" || window.N1ED_HTTPS === false)
-							? ""
-							: "s"
-					) + "://" + prefix + "cloud.n1ed.com";
-
-				Flmngr.includeJS(host + "/v/latest/sdk/flmngr.js?apiKey=" + apiKey);
-				Flmngr.includeJS(host + "/v/latest/sdk/imgpen.js?apiKey=" + apiKey);
-
-				// Failsafe: when our server is not available, the editor itself stays usable,
-				// but the file manager buttons would silently do nothing. Warn the user instead.
-				let timeoutMs = typeof window.N1ED_FAILSAFE_TIMEOUT === "number" ? window.N1ED_FAILSAFE_TIMEOUT : 15000;
-				if (timeoutMs > 0) {
-					this._loadTimeout = setTimeout(() => {
-						if (!window.flmngr) {
-							console.warn("No answer from our server in " + timeoutMs + " ms, the editor continues without the file manager");
-							showWarning(
-								this.editor,
-								"Flmngr",
-								false,
-								"Failed to load Flmngr from CDN. File manager is unavailable.",
-								false
-							);
-						}
-					}, timeoutMs);
-				}
-			}, delay);
+			// Another of our plugins in the page (Blk42) may have requested the same script already:
+			// then its answer is the answer, whether it is still on its way or already in.
+			let url = this.getUrlCdn() + "/a/" + this.getApiKey() + "/plugins/N1EDEco/plugin.js";
+			let script = Flmngr.findScript(url);
+			if (!!script) {
+				if (window.n1edEco.n1edConfig || window.n1edEco.cke5Runtimes)
+					check();
+				else
+					script.addEventListener("load", check);
+			} else {
+				script = Flmngr.includeJS(url);
+				script.onerror = () => this.giveUpLoading("the CDN request failed");
+				script.onload = check;
+			}
 		}
-
-		/*if ( !this.editor.plugins.has( 'ImageBlockEditing' ) && !this.editor.plugins.has( 'ImageInlineEditing' ) ) {
-			throw new CKEditorError( 'flmngr-missing-image-plugin', this.editor );
-		}*/
-
-		// Add the commands
-		this.editor.commands.add( 'upload', new UploadCommand( this.editor ) );
-		this.flmngrCommand = new FlmngrCommand( this.editor );
-		this.editor.commands.add( 'flmngr', this.flmngrCommand );
-		this.editor.commands.add( 'imgpen', new ImgPenCommand( this.editor ) );
-
-		// Add UI button
-		const componentFactory = this.editor.ui.componentFactory;
-		const t = this.editor.t;
-
-		componentFactory.add( 'upload', locale => {
-			const command = this.editor.commands.get( 'upload' );
-
-			const button = new ButtonView( locale );
-
-			button.set( {
-				label: t( 'Upload image or file' ),
-				icon: iconUpload,
-				tooltip: true
-			} );
-
-			button.bind( 'isEnabled' ).to( command );
-
-			button.on( 'execute', () => {
-				this.editor.execute( 'upload' );
-				this.editor.editing.view.focus();
-			} );
-
-			return button;
-		} );
-
-		componentFactory.add( 'flmngr', locale => {
-			const command = this.editor.commands.get( 'flmngr' );
-
-			const button = new ButtonView( locale );
-
-			button.set( {
-				label: t( 'Browse image or file' ),
-				icon: iconFlmngr,
-				tooltip: true
-			} );
-
-			button.bind( 'isEnabled' ).to( command );
-
-			button.on( 'execute', () => {
-				this.editor.execute( 'flmngr' );
-				this.editor.editing.view.focus();
-			} );
-
-			return button;
-		} );
-
-		componentFactory.add( 'imgpen', locale => {
-			const command = this.editor.commands.get( 'imgpen' );
-
-			const button = new ButtonView( locale );
-
-			button.set( {
-				label: t( 'Edit image' ),
-				icon: iconImgPen,
-				tooltip: true
-			} );
-
-			button.bind( 'isEnabled' ).to( command );
-
-			button.on( 'execute', () => {
-				this.editor.execute( 'imgpen' );
-				this.editor.editing.view.focus();
-			} );
-
-			return button;
-		} );
-
-		this.attachToLinkBalloon();
 	}
 
-	attachToLinkBalloon() {
+	initFlmngr(Flmngr) {
 
-		const editor = this.editor;
+		if (!!this.editor["FlmngrInstance"] || this.editor.state === "destroyed")
+			return;
 
-		// Link/LinkEditing are an OPTIONAL dependency (see `requires` above), so plenty of
-		// editors have no LinkUI: the install page's own plugin list, and Drupal until the
-		// user puts a Link button on the toolbar. `plugins.get()` THROWS for a plugin that is
-		// not loaded, and that killed the whole editor at boot instead of just leaving the
-		// link balloon alone. Ask first, and skip the extra button when it is not there.
-		if ( !editor.plugins.has( 'LinkUI' ) || !editor.plugins.has( 'ContextualBalloon' ) ) {
+		// The CDN code builds on the editor UI, so it starts once the editor is ready. The first
+		// editor of a page always is by the time the cloud code arrives; any later one (a second
+		// field, an editor created again) gets the code at once, still inside init().
+		if (this.editor.state !== "ready") {
+			this.editor.once("ready", () => this.initFlmngr(Flmngr));
 			return;
 		}
 
-		const linkUI = editor.plugins.get( "LinkUI" );
-		const contextualBalloonPlugin = editor.plugins.get( 'ContextualBalloon' );
+		if (this._loadTimeout) {
+			clearTimeout(this._loadTimeout);
+			this._loadTimeout = null;
+		}
 
-		this.listenTo( contextualBalloonPlugin, 'change:visibleView', ( evt, name, visibleView ) => {
+		this.editor["FlmngrInstance"] = window.n1edEco.FlmngrCKEditor5Api.createInstance(this.editor);
 
-			// CKEditor 5 creates the link form the first time it is shown, so until then formView is
-			// null, and so is visibleView whenever a balloon empties (the image toolbar hiding when
-			// ImgPen takes the focus): only a real view can be the link form.
-			if ( !!visibleView && visibleView === linkUI.formView ) {
+		for (const item of ITEMS)
+			this.editor.commands.get(item.name).refresh();
+	}
 
-				this.stopListening( contextualBalloonPlugin, 'change:visibleView' );
-
-				let linkFormView = linkUI.formView;
-				const buttonFlmngr = new ButtonView(editor.locale);
-				buttonFlmngr.set({
-					icon: iconFlmngr
-				});
-				buttonFlmngr.on('execute', () => {
-
-					function blockClickOutside() {
-						const handler = (event) => {
-							event.stopImmediatePropagation(); // предотвращает вызов clickOutsideHandler
-						};
-						document.addEventListener('mousedown', handler, true); // capture: true
-						return () => {
-							document.removeEventListener('mousedown', handler, true);
-						};
-					}
-
-					const unblock = blockClickOutside();
-
-					this.flmngrCommand.execute2(false, (urls) => {
-						unblock();
-						if (urls !== null) { // null means cancelled/fail
-							linkFormView.urlInputView.value = urls[0];
-							linkFormView.urlInputView.fieldView.value = urls[0];
-							linkFormView.fire('submit');
-						}
-					});
-				});
-				buttonFlmngr.render();
-				let elButtonFlmngr = buttonFlmngr.element;
-
-
-				let elButtonSvg = elButtonFlmngr.querySelector("svg");
-				let elButtonTitle = document.createElement("div");
-				elButtonTitle.innerText = "Browse";
-				elButtonSvg.parentElement.insertBefore(elButtonTitle, elButtonSvg.nextSibling);
-
-				let elStyle = document.createElement("style");
-				elStyle.innerHTML = `
-									.ck-button-flmngr {
-										margin-left: 4px !important;
-										margin-right: 20px !important;
-										gap: 6px;
-										padding-left: 6px !important;
-										padding-right: 6px !important;
-									}
-									.ck-button-flmngr > svg {
-										margin-top: -2px !important;
-									}
-									.ck-button-flmngr > div {
-										font-weight: bold !important;
-									}									
-									.ck-labeled-field-view_focused + .ck-button-flmngr,
-									.ck-labeled-field-view_focused + .ck-button-flmngr + style + .ck-button-upload {
-										border: var(--ck-focus-ring);
-										box-shadow: var(--ck-focus-outer-shadow), 0 0;
-									}
-								`;
-				elButtonFlmngr.classList.add("ck-button-flmngr");
-				elButtonFlmngr.appendChild(elStyle);
-
-
-				// Register the button under the link form view, it will handle its destruction.
-				linkFormView.registerChild( buttonFlmngr );
-
-				// Inject the element into DOM.
-				linkFormView.element.insertBefore( elButtonFlmngr, linkFormView.saveButtonView.element );
-			}
-		} );
+	static findScript(urlJS) {
+		let scripts = document.getElementsByTagName("script");
+		for (let i = 0; i < scripts.length; i++) {
+			let src = scripts[i].getAttribute("src");
+			if (src != null && decodeURI(src).indexOf(urlJS) !== -1)
+				return scripts[i];
+		}
+		return null;
 	}
 
 	static includeJS(urlJS) {
-		let scripts = document.getElementsByTagName("script");
-		let alreadyExists = false;
-		let existingScript = null;
-		for (let i = 0; i < scripts.length; i++) {
-			let src = decodeURI(scripts[i].getAttribute("src"));
-			if (src != null && src.indexOf(urlJS) !== -1) {
-				alreadyExists = true;
-				existingScript = scripts[i];
-			}
-		}
-		if (!alreadyExists) {
-			let script = document.createElement("script");
-			script.type = "text/javascript";
-			script.src = urlJS;
-			script.setAttribute("data-by-flmngr", "true");
-			document.getElementsByTagName("head")[0].appendChild(script);
-			return script;
-		} else {
-			return null;
-		}
+		let script = document.createElement("script");
+		script.type = "text/javascript";
+		script.src = urlJS;
+		script.setAttribute("data-by-flmngr", "true");
+		document.getElementsByTagName("head")[0].appendChild(script);
+		return script;
 	}
 }
